@@ -2,7 +2,7 @@ import argparse
 import sys
 import re
 import hashlib
-from math import ceil, gcd
+from math import ceil
 from functools import reduce as funcreduce
 from operator import iconcat
 
@@ -52,8 +52,25 @@ def count_word_ocurrences(text, length):
             if ocurrences >= ocurrences_threshold}
 
 
-def list_gcd(int_list):
-    return funcreduce(lambda x, y: gcd(x, y), int_list)
+def get_divs(_int):
+    yield _int
+    for i in range(2, int(_int / 2) + 1):
+        mod = _int % i
+        if mod == 0:
+            yield i
+
+
+def key_lengths(int_list):
+    ocurrences = {}
+    for _int in int_list:
+        divs = list(get_divs(_int))
+        for div in divs:
+            if div in ocurrences:
+                ocurrences[div] += 1
+            else:
+                ocurrences.update({div: 1})
+
+    return [key for key, ocurrence in reversed(sorted(ocurrences.items(), key=lambda item: item[1])) if ocurrence != 1] + [1]
 
 
 def main():
@@ -78,9 +95,10 @@ def main():
     # Hash preprocessing
     input_hash = args.hash.read().replace('\n', '')
 
+    # Propose key lengths
     most_ocurrent_words = count_word_ocurrences(input_text, 4)
-    key_length = list_gcd(set(funcreduce(iconcat, most_ocurrent_words.values(), [])))
-    print(f'Key length: {key_length}')
+    key_length_candidates = key_lengths(set(funcreduce(iconcat, most_ocurrent_words.values(), [])))
+    print(f'Key length candidates: {key_length_candidates}')
 
     # Key generation
     key = 'luz'
