@@ -1,10 +1,10 @@
 import argparse
 import sys
-import re
 import hashlib
 from math import ceil
 from functools import reduce as funcreduce
 from operator import iconcat
+from itertools import product
 
 
 HELP = """
@@ -18,6 +18,13 @@ optional arguments:
                         file with the dictionary to be used
   --hash HASH           file with the hash to be used for comparison
 """
+
+MOST_COMMON_SPANISH = [('E', 4), ('A', 0), ('O', 15)]
+MOST_COMMON_FRENGLISH = [('E', 4), ('T', 19), ('S', 18), ('A', 0)]
+
+WORD_LENGTH_THRESHOLD = 4
+KEY_LENGTH_THRESHOLD = 4
+OCURRENCES_THRESHOLD = 10
 
 
 def decipher(string, key, a2i_dict, i2a_dict):
@@ -70,14 +77,20 @@ def key_lengths(int_list):
             else:
                 ocurrences.update({div: 1})
 
-    return [key for key, ocurrence in reversed(sorted(ocurrences.items(), key=lambda item: item[1])) if ocurrence != 1] + [1]
+    return [key
+            for key, ocurrence in reversed(sorted(ocurrences.items(), key=lambda item: item[1]))
+            if ocurrence != 1
+            ] + [1]
 
 
 def main():
     argparser = argparse.ArgumentParser(prog='vigenere')
     argparser.add_argument('-i', '--input', type=argparse.FileType(), help='input file')
-    argparser.add_argument('-d', '--dictionary', type=argparse.FileType(), help='file with the dictionary to be used')
-    argparser.add_argument('--hash', type=argparse.FileType(), help='file with the hash to be used for comparison')
+    argparser.add_argument('-d', '--dictionary', type=argparse.FileType(),
+                           help='file with the dictionary to be used')
+    argparser.add_argument('--hash', type=argparse.FileType(),
+                           help='file with the hash to be used for comparison')
+    argparser.add_argument('-v', '--verbose', action='store_true', help='enables verbose mode')
     args = argparser.parse_args()
 
     if (not args.input) or (not args.dictionary) or (not args.hash):
@@ -89,27 +102,63 @@ def main():
         a2i_dict.update({value: index})
         i2a_dict.update({index: value})
 
+    if 'Ñ' in a2i_dict:
+        language = 1
+    else:
+        language = 0
+
+    if args.verbose:
+        print(f'DEBUG\tDictionary: {a2i_dict.keys()}')
+
     # Input text preprocessing
-    input_text = re.sub('[^A-Z]', '', args.input.read().upper())
+    input_text = args.input.read().replace('\n', '')
 
     # Hash preprocessing
     input_hash = args.hash.read().replace('\n', '')
 
     # Propose key lengths
-    most_ocurrent_words = count_word_ocurrences(input_text, 4)
+    most_ocurrent_words = count_word_ocurrences(input_text, WORD_LENGTH_THRESHOLD)
     key_length_candidates = key_lengths(set(funcreduce(iconcat, most_ocurrent_words.values(), [])))
-    print(f'Key length candidates: {key_length_candidates}')
+    if args.verbose:
+        print(f'DEBUG\tKey length candidates: {key_length_candidates}')
 
-    # Key generation
-    key = 'luz'
+    # Decipher
+    for key_length in key_length_candidates[0:KEY_LENGTH_THRESHOLD]:
+        if args.verbose:
+            print(f'DEBUG\tTrying keylength: {key_length}')
+        checked = 0
+        ocurrences_trimmed = []
+        for index in range(key_length):
+            ocurrences = {}
+            for checked in range(0, len(input_text)-key_length, key_length):
+                letter = input_text[index+checked]
+                if letter in ocurrences:
+                    ocurrences[letter] += 1
+                else:
+                    ocurrences.update({letter: 1})
+            ocurrences = sorted(ocurrences.items(), key=lambda item: item[1], reverse=True)
+            ocurrences_trimmed.append([letter
+                                       for letter, _frequency in ocurrences[0:OCURRENCES_THRESHOLD]
+                                       ])
+        letter_key_candidates = []
+        for letters in ocurrences_trimmed:
+            common_column_letters = []
+            for letter in letters:
+                if language == 1:
+                    common_column_letters.append(i2a_dict[
+                        (a2i_dict[letter]-MOST_COMMON_SPANISH[0][1]) % len(a2i_dict)
+                        ])
+                else:
+                    common_column_letters.append(i2a_dict[
+                        (a2i_dict[letter]-MOST_COMMON_FRENGLISH[0][1]) % len(a2i_dict)
+                        ])
+            letter_key_candidates.append(common_column_letters)
 
-    # Decrypted text
-    decrypted_text = decipher(input_text, key, a2i_dict, i2a_dict)
-
-    # Key test
-    test = hashlib.sha256(decrypted_text.encode('utf-8')).hexdigest() == input_hash
-
-    print(f'Key: {key}, Test: {test}')
+        for key_candidate in product(*letter_key_candidates):
+            decrypted_text = decipher(input_text, key_candidate, a2i_dict, i2a_dict)
+            if hashlib.sha256(decrypted_text.encode('utf-8')).hexdigest() == input_hash:
+                print(f'{"".join(key_candidate)}')
+                sys.exit()
 
 
 if __name__ == "__main__":
