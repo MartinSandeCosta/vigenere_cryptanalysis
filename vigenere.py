@@ -49,8 +49,7 @@ def count_word_ocurrences(text, length):
             word_ocurrences[word][1].append(i)
         else:
             word_ocurrences.update({word: [1, [i]]})
-        if word_ocurrences[word][0] > max_ocurrences:
-            max_ocurrences = word_ocurrences[word][0]
+        max_ocurrences = max(word_ocurrences[word][0], max_ocurrences)
 
     ocurrences_threshold = ceil(max_ocurrences*0.66)
 
@@ -85,12 +84,14 @@ def key_lengths(int_list):
 
 def main():
     argparser = argparse.ArgumentParser(prog='vigenere')
-    argparser.add_argument('-i', '--input', type=argparse.FileType(), help='input file')
+    argparser.add_argument(
+        '-i', '--input', type=argparse.FileType(), help='input file')
     argparser.add_argument('-d', '--dictionary', type=argparse.FileType(),
                            help='file with the dictionary to be used')
     argparser.add_argument('--hash', type=argparse.FileType(),
                            help='file with the hash to be used for comparison')
-    argparser.add_argument('-v', '--verbose', action='store_true', help='enables verbose mode')
+    argparser.add_argument(
+        '-v', '--verbose', action='store_true', help='enables verbose mode')
     args = argparser.parse_args()
 
     if (not args.input) or (not args.dictionary) or (not args.hash):
@@ -102,10 +103,7 @@ def main():
         a2i_dict.update({value: index})
         i2a_dict.update({index: value})
 
-    if 'Ñ' in a2i_dict:
-        language = 1
-    else:
-        language = 0
+    language = 1 if 'Ñ' in a2i_dict else 0
 
     if args.verbose:
         print(f'DEBUG\tDictionary: {a2i_dict.keys()}')
@@ -117,8 +115,10 @@ def main():
     input_hash = args.hash.read().replace('\n', '')
 
     # Propose key lengths
-    most_ocurrent_words = count_word_ocurrences(input_text, WORD_LENGTH_THRESHOLD)
-    key_length_candidates = key_lengths(set(funcreduce(iconcat, most_ocurrent_words.values(), [])))
+    most_ocurrent_words = count_word_ocurrences(
+        input_text, WORD_LENGTH_THRESHOLD)
+    key_length_candidates = key_lengths(
+        set(funcreduce(iconcat, most_ocurrent_words.values(), [])))
     if args.verbose:
         print(f'DEBUG\tKey length candidates: {key_length_candidates}')
 
@@ -136,7 +136,8 @@ def main():
                     ocurrences[letter] += 1
                 else:
                     ocurrences.update({letter: 1})
-            ocurrences = sorted(ocurrences.items(), key=lambda item: item[1], reverse=True)
+            ocurrences = sorted(ocurrences.items(),
+                                key=lambda item: item[1], reverse=True)
             ocurrences_trimmed.append([letter
                                        for letter, _frequency in ocurrences[0:OCURRENCES_THRESHOLD]
                                        ])
@@ -146,16 +147,19 @@ def main():
             for letter in letters:
                 if language == 1:
                     common_column_letters.append(i2a_dict[
-                        (a2i_dict[letter]-MOST_COMMON_SPANISH[0][1]) % len(a2i_dict)
-                        ])
+                        (a2i_dict[letter]-MOST_COMMON_SPANISH[0]
+                         [1]) % len(a2i_dict)
+                    ])
                 else:
                     common_column_letters.append(i2a_dict[
-                        (a2i_dict[letter]-MOST_COMMON_FRENGLISH[0][1]) % len(a2i_dict)
-                        ])
+                        (a2i_dict[letter]-MOST_COMMON_FRENGLISH[0]
+                         [1]) % len(a2i_dict)
+                    ])
             letter_key_candidates.append(common_column_letters)
 
         for key_candidate in product(*letter_key_candidates):
-            decrypted_text = decipher(input_text, key_candidate, a2i_dict, i2a_dict)
+            decrypted_text = decipher(
+                input_text, key_candidate, a2i_dict, i2a_dict)
             if hashlib.sha256(decrypted_text.encode('utf-8')).hexdigest() == input_hash:
                 print(f'{"".join(key_candidate)}')
                 sys.exit()
