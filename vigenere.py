@@ -9,7 +9,7 @@ from itertools import product
 
 MOST_COMMON_LETTER = ('E', 4)
 
-WORD_LENGTH = 3
+WORD_LENGTH = 4
 KEY_LENGTH_THRESHOLD = 4
 OCCURRENCES_THRESHOLD = 5
 
@@ -69,6 +69,24 @@ def key_lengths(int_list):
             ] + [1]
 
 
+def find_occurrences(key_length, input_text, occurences_threshold):
+    occurrences_trimmed = []
+    for index in range(key_length):
+        occurrences = {}
+        for checked in range(0, len(input_text)-key_length, key_length):
+            letter = input_text[index+checked]
+            if letter in occurrences:
+                occurrences[letter] += 1
+            else:
+                occurrences.update({letter: 1})
+        occurrences = sorted(occurrences.items(),
+                             key=lambda item: item[1], reverse=True)
+        occurrences_trimmed.append([letter
+                                    for letter, _frequency in occurrences[0:occurences_threshold]
+                                    ])
+    return occurrences_trimmed
+
+
 def main():
     argparser = argparse.ArgumentParser(prog='vigenere')
     argparser.add_argument('-i', '--input', type=argparse.FileType(), help='input file')
@@ -77,7 +95,7 @@ def main():
     argparser.add_argument('--hash', type=argparse.FileType(),
                            help='file with the hash to be used for comparison')
     argparser.add_argument('-wl', '--word-length', type=int,
-                           help=f'length of words for ocurrence count in length guessing (Kasiski)' +
+                           help='length of words for ocurrence count in length guessing (Kasiski)' +
                            f': defaults to {WORD_LENGTH}')
     argparser.add_argument('-klt', '--key-length-threshold', type=int,
                            help='number of key length candidates to examine (Kasiski)' +
@@ -90,7 +108,7 @@ def main():
 
     if (not args.input) or (not args.dictionary) or (not args.hash):
         sys.exit(argparser.print_help())
-    
+
     # Kasiski arguments
     word_length = args.word_length if args.word_length else WORD_LENGTH
     key_length_threshold = args.key_length_threshold if args.key_length_threshold else KEY_LENGTH_THRESHOLD
@@ -123,23 +141,11 @@ def main():
     for key_length in key_length_candidates[0:key_length_threshold]:
         if args.verbose:
             print(f'DEBUG\tTrying keylength: {key_length}')
-        checked = 0
-        occurrences_trimmed = []
-        for index in range(key_length):
-            occurrences = {}
-            for checked in range(0, len(input_text)-key_length, key_length):
-                letter = input_text[index+checked]
-                if letter in occurrences:
-                    occurrences[letter] += 1
-                else:
-                    occurrences.update({letter: 1})
-            occurrences = sorted(occurrences.items(),
-                                key=lambda item: item[1], reverse=True)
-            occurrences_trimmed.append([letter
-                                       for letter, _frequency in occurrences[0:occurrences_threshold]
-                                       ])
+
+        occurrences = find_occurrences(key_length, input_text, occurrences_threshold)
+
         letter_key_candidates = []
-        for letters in occurrences_trimmed:
+        for letters in occurrences:
             common_column_letters = []
             for letter in letters:
                 common_column_letters.append(i2a_dict[
@@ -153,6 +159,12 @@ def main():
             if hashlib.sha256(decrypted_text.encode('utf-8')).hexdigest() == input_hash:
                 print(f'{"".join(key_candidate)}')
                 sys.exit()
+
+    sys.exit('A key has not be found under the following Kasiski configuration:\n' + \
+             f'\t--word-length={word_length}\n' + \
+             f'\t--key-length-threshold={key_length_threshold}\n' + \
+             f'\t--occurrences-threshold={occurrences_threshold}\n' + \
+             'These heuristics are too restrictive. Try again changing the configuration values!')
 
 
 if __name__ == "__main__":
