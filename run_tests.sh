@@ -13,7 +13,7 @@ optional arguments:
     -t              shows elapsed time for each instance"""
 }
 
-while getopts ":vh" opt; do
+while getopts "vh" opt; do
     case "$opt" in
     v)
         VERBOSE='-v'
