@@ -2,7 +2,6 @@
 
 JDP_LENGTH=6
 VERBOSE=''
-TIME=false
 TIMEFORMAT='%3R'
 
 instructions() {

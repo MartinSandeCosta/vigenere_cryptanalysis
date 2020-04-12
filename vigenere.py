@@ -11,7 +11,7 @@ MOST_COMMON_LETTER = ('E', 4)
 
 WORD_LENGTH = 4
 KEY_LENGTH_THRESHOLD = 4
-OCCURRENCES_THRESHOLD = 5
+OCCURRENCES_THRESHOLD = 2
 
 
 def decipher(string, key, a2i_dict, i2a_dict):
