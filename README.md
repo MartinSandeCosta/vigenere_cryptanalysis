@@ -34,7 +34,7 @@ To use this repo, follow these steps:
     ```
     $ python3 vigenere.py -i input -d dictionary --hash hash
     ```
-
+    > If something goes wrong try increasing the optional flags
 ## Running the tests
 
 The repo includes a script to run tests automatically
